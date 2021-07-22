@@ -9,19 +9,19 @@ namespace OXGaming.TibiaAPI.Appearances
     {
         private Utilities.Appearances appearances;
 
-        private uint lastObjectId;
+        public uint LastObjectId { get; private set; }
         private uint lastOutfitId;
 
         public void LoadAppearances(FileStream datFileStream)
         {
             appearances = Utilities.Appearances.Parser.ParseFrom(datFileStream);
-            lastObjectId = appearances.Object.Aggregate((last, current) => last.Id > current.Id ? last : current).Id;
+            LastObjectId = appearances.Object.Aggregate((last, current) => last.Id > current.Id ? last : current).Id;
             lastOutfitId = appearances.Outfit.Aggregate((last, current) => last.Id > current.Id ? last : current).Id;
         }
 
         public ObjectInstance CreateObjectInstance(uint id, uint data)
         {
-            if (id >= (uint)CreatureInstanceType.Creature && id <= lastObjectId)
+            if (id >= (uint)CreatureInstanceType.Creature && id <= LastObjectId)
             {
                 return new ObjectInstance(id, appearances.Object.FirstOrDefault(i => i.Id == id), data);
             }
@@ -39,7 +39,7 @@ namespace OXGaming.TibiaAPI.Appearances
 
         public Utilities.Appearance GetObjectType(uint id)
         {
-            if (id > (uint)CreatureInstanceType.Creature && id <= lastObjectId)
+            if (id > (uint)CreatureInstanceType.Creature && id <= LastObjectId)
             {
                 return appearances.Object.FirstOrDefault(o => o.Id == id);
             }
