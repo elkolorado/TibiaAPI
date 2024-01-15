@@ -36,6 +36,20 @@ namespace DumpItems
             }
         }
 
+        public class LookAtCreature : Creature
+        {
+            public LookAtCreature(Client client, ushort from, ushort to) : base(client)
+            {
+                Client = client;
+                PacketType = ClientPacketType.LookAtCreature;
+
+                for (ushort i = from; i < to; ++i)
+                {
+                    Creatures.Add(i);
+                }
+            }
+        }
+
 
         private static void SendItemNamesRequests()
         {
@@ -86,6 +100,49 @@ namespace DumpItems
             _client.Connection.SendToServer(firstPacket);
         }
 
+        private static void SendCreatureLookRequests()
+        {
+            ushort from = 1;
+            ushort to = Convert.ToUInt16(Math.Min(from + MaxObjectsPerPacket, end));
+
+            _client.serverMessageParseFilter.Add(ServerPacketType.LookAtCreature);
+
+            _client.ServerMessageParsed += (packet) =>
+            {
+                var creatureLookPacket = (LookAtCreature)packet;
+
+                Console.WriteLine($"Received creature ids {from}-{to}");
+
+                foreach (var (Id, _, Name) in creatureLookPacket.Creatures)
+                {
+                    if (!string.IsNullOrEmpty(Name))
+                    {
+                        sb.AppendLine($"[{Id}] {Name}");
+                    }
+                }
+
+                if (to != end)
+                {
+                    from = to;
+                    to = Convert.ToUInt16(Math.Min(from + MaxObjectsPerPacket, end));
+
+                    var nextPacket = new LookAtCreature(_client, from, to);
+                    _client.Connection.SendToServer(nextPacket);
+                }
+                else
+                {
+                    System.IO.File.WriteAllText(@"./creature_names.txt", sb.ToString());
+                    Console.WriteLine("Done. Creature names have been written to ./creature_names.txt.");
+                }
+
+                return true;
+            };
+
+            var firstPacket = new LookAtCreature(_client, from, to);
+            _client.Connection.SendToServer(firstPacket);
+        }
+
+
         static void Main(string[] args)
         {
             try
@@ -94,6 +151,7 @@ namespace DumpItems
                 {
                     _client.Connection.IsServerPacketModificationEnabled = false;
                     _client.serverMessageParseFilter.Add(ServerPacketType.ObjectInfo);
+                    _client.serverMessageParseFilter.Add(ServerPacketType.LookAtCreature);
                     _client.StartConnection();
 
                     Console.WriteLine(@"Usage:
@@ -110,6 +168,9 @@ namespace DumpItems
                         {
                             case "send":
                                 SendItemNamesRequests();
+                                break;
+                            case "look":
+                                SendCreatureLookRequests();
                                 break;
                             case "quit":
                                 exit = true;
